@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestió - Lourdes</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        .timer-display { font-family: 'Courier New', monospace; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Iconos SVG
+        const Plus = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+        );
+
+        const Play = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-6-4V8a2 2 0 012-2h4a2 2 0 012 2v2M7 16a6 6 0 1110 0H7z" />
+            </svg>
+        );
+
+        const Pause = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+
+        const Clock = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+
+        const Euro = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 15.536c-1.171 1.952-3.07 1.952-4.242 0-1.172-1.953-1.172-5.119 0-7.072 1.172-1.952 3.07-1.952 4.242 0M8 10.5h4m-4 3h4m9-1.5a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+
+        const Filter = () => (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z" />
+            </svg>
+        );
+
+        const BarChart3 = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+        );
+
+        const CheckCircle2 = () => (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+
+        const Circle = () => (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
+            </svg>
+        );
+
+        const AlertCircle = () => (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+        );
+
+        const TaskManager = () => {
+            const [tasks, setTasks] = useState([]);
+            const [filter, setFilter] = useState('all');
+            const [view, setView] = useState('tasks');
+            const [newTask, setNewTask] = useState({
+                description: '',
+                department: '',
+                status: 'Pendent',
+                timeTracked: 0, // en minutos
+                budget: '',
+                clientName: '',
+                clientResponsible: '',
+                clientProject: '',
+                notes: '',
+                deliveryDate: '',
+                isTimerRunning: false,
+                timerStart: null
+            });
+            const [showAddForm, setShowAddForm] = useState(false);
+            const [activeTimers, setActiveTimers] = useState(new Set());
+            const timerIntervals = useRef(new Map());
+
+            const departments = [
+                'Direcció', 'Consultoria', 'Supervisió Cine', 'Publicitat', 
+                'Juny', 'Fronterah', 'Editorial', 'Financer'
+            ];
+
+            const statusOptions = [
+                'Completat', 'In progress', 'Pendent', 'Espero resposta client', 'Espero resposta 3ers'
+            ];
+
+            useEffect(() => {
+                const savedTasks = localStorage.getItem('lourdes-tasks-v2');
+                if (savedTasks) {
+                    setTasks(JSON.parse(savedTasks));
+                }
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('lourdes-tasks-v2', JSON.stringify(tasks));
+            }, [tasks]);
+
+            // Timer management
+            useEffect(() => {
+                return () => {
+                    // Cleanup all intervals on unmount
+                    timerIntervals.current.forEach(interval => clearInterval(interval));
+                };
+            }, []);
+
+            const formatTime = (minutes) => {
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+            };
+
+            const startTimer = (taskId) => {
+                const task = tasks.find(t => t.id === taskId);
+                if (!task || activeTimers.has(taskId)) return;
+
+                setActiveTimers(prev => new Set([...prev, taskId]));
+                
+                const interval = setInterval(() => {
+                    setTasks(prevTasks => 
+                        prevTasks.map(task => 
+                            task.id === taskId 
+                                ? { ...task, timeTracked: task.timeTracked + 1 }
+                                : task
+                        )
+                    );
+                }, 60000); // Cada minuto
+
+                timerIntervals.current.set(taskId, interval);
+            };
+
+            const stopTimer = (taskId) => {
+                setActiveTimers(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(taskId);
+                    return newSet;
+                });
+
+                const interval = timerIntervals.current.get(taskId);
+                if (interval) {
+                    clearInterval(interval);
+                    timerIntervals.current.delete(taskId);
+                }
+            };
+
+            const addTask = () => {
+                if (!newTask.description.trim()) return;
+                
+                const task = {
+                    ...newTask,
+                    id: Date.now(),
+                    createdAt: new Date().toISOString(),
+                    budget: parseFloat(newTask.budget) || 0
+                };
+                
+                setTasks([...tasks, task]);
+                setNewTask({
+                    description: '',
+                    department: '',
+                    status: 'Pendent',
+                    timeTracked: 0,
+                    budget: '',
+                    clientName: '',
+                    clientResponsible: '',
+                    clientProject: '',
+                    notes: '',
+                    deliveryDate: '',
+                    isTimerRunning: false,
+                    timerStart: null
+                });
+                setShowAddForm(false);
+            };
+
+            const updateTask = (id, updates) => {
+                setTasks(tasks.map(task => 
+                    task.id === id ? { ...task, ...updates } : task
+                ));
+            };
+
+            const deleteTask = (id) => {
+                stopTimer(id);
+                setTasks(tasks.filter(task => task.id !== id));
+            };
+
+            const filteredTasks = tasks.filter(task => {
+                if (filter === 'all') return true;
+                if (filter === 'pending') return task.status === 'Pendent';
+                if (filter === 'in-progress') return task.status === 'In progress';
+                if (filter === 'completed') return task.status === 'Completat';
+                if (filter === 'waiting-client') return task.status === 'Espero resposta client';
+                if (filter === 'waiting-third') return task.status === 'Espero resposta 3ers';
+                return true;
+            });
+
+            const getStatusColor = (status) => {
+                switch (status) {
+                    case 'Completat': return 'text-green-600 bg-green-50 border-green-200';
+                    case 'In progress': return 'text-blue-600 bg-blue-50 border-blue-200';
+                    case 'Pendent': return 'text-red-600 bg-red-50 border-red-200';
+                    case 'Espero resposta client': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+                    case 'Espero resposta 3ers': return 'text-purple-600 bg-purple-50 border-purple-200';
+                    default: return 'text-gray-600 bg-gray-50 border-gray-200';
+                }
+            };
+
+            // Analytics calculations
+            const analytics = {
+                totalTasks: tasks.length,
+                completedTasks: tasks.filter(t => t.status === 'Completat').length,
+                pendingTasks: tasks.filter(t => t.status === 'Pendent').length,
+                inProgressTasks: tasks.filter(t => t.status === 'In progress').length,
+                waitingClientTasks: tasks.filter(t => t.status === 'Espero resposta client').length,
+                waitingThirdTasks: tasks.filter(t => t.status === 'Espero resposta 3ers').length,
+                totalBudget: tasks.reduce((sum, t) => sum + (t.budget || 0), 0),
+                totalHoursWorked: tasks.reduce((sum, t) => sum + (t.timeTracked || 0), 0) / 60,
+                byDepartment: {},
+                byClient: {}
+            };
+
+            tasks.forEach(task => {
+                if (task.department) {
+                    analytics.byDepartment[task.department] = (analytics.byDepartment[task.department] || 0) + 1;
+                }
+                if (task.clientName) {
+                    analytics.byClient[task.clientName] = (analytics.byClient[task.clientName] || 0) + 1;
+                }
+            });
+
+            const renderTaskCard = (task) => (
+                React.createElement('div', {
+                    key: task.id,
+                    className: "bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+                }, [
+                    React.createElement('div', {
+                        className: "flex items-start justify-between mb-3",
+                        key: "header"
+                    }, [
+                        React.createElement('h3', {
+                            key: "description",
+                            className: "font-medium text-gray-900 flex-1 pr-2"
+                        }, task.description),
+                        React.createElement('span', {
+                            key: "status",
+                            className: `px-2 py-1 text-xs rounded-full border ${getStatusColor(task.status)}`
+                        }, task.status)
+                    ]),
+                    
+                    React.createElement('div', {
+                        key: "details",
+                        className: "grid grid-cols-2 gap-2 text-sm text-gray-600 mb-3"
+                    }, [
+                        task.department && React.createElement('div', { key: "department" }, [
+                            React.createElement('strong', null, 'Departament: '), task.department
+                        ]),
+                        task.clientName && React.createElement('div', { key: "client" }, [
+                            React.createElement('strong', null, 'Client: '), task.clientName
+                        ]),
+                        task.clientProject && React.createElement('div', { key: "project" }, [
+                            React.createElement('strong', null, 'Projecte: '), task.clientProject
+                        ]),
+                        task.clientResponsible && React.createElement('div', { key: "responsible" }, [
+                            React.createElement('strong', null, 'Responsable: '), task.clientResponsible
+                        ]),
+                        task.deliveryDate && React.createElement('div', { key: "delivery" }, [
+                            React.createElement('strong', null, 'Entrega: '), 
+                            new Date(task.deliveryDate).toLocaleDateString('ca-ES')
+                        ])
+                    ]),
+
+                    React.createElement('div', {
+                        key: "metrics",
+                        className: "flex items-center justify-between mb-3"
+                    }, [
+                        React.createElement('div', {
+                            key: "time-section",
+                            className: "flex items-center space-x-2"
+                        }, [
+                            React.createElement('div', {
+                                key: "timer",
+                                className: "flex items-center space-x-1"
+                            }, [
+                                React.createElement(Clock, { key: "clock-icon" }),
+                                React.createElement('span', { 
+                                    key: "time-display",
+                                    className: "timer-display font-mono text-sm"
+                                }, formatTime(task.timeTracked || 0))
+                            ]),
+                            React.createElement('button', {
+                                key: "timer-btn",
+                                onClick: () => activeTimers.has(task.id) ? stopTimer(task.id) : startTimer(task.id),
+                                className: `p-1 rounded ${activeTimers.has(task.id) ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`
+                            }, activeTimers.has(task.id) ? React.createElement(Pause) : React.createElement(Play))
+                        ]),
+                        task.budget > 0 && React.createElement('div', {
+                            key: "budget",
+                            className: "flex items-center space-x-1 text-sm text-gray-600"
+                        }, [
+                            React.createElement(Euro, { key: "euro-icon" }),
+                            React.createElement('span', { key: "budget-text" }, `${task.budget.toFixed(2)}€`)
+                        ])
+                    ]),
+
+                    task.notes && React.createElement('p', {
+                        key: "notes",
+                        className: "text-sm text-gray-600 mb-3 italic"
+                    }, task.notes),
+
+                    React.createElement('div', {
+                        key: "controls",
+                        className: "flex items-center justify-between border-t pt-3"
+                    }, [
+                        React.createElement('div', {
+                            key: "status-control",
+                            className: "flex items-center space-x-2"
+                        }, [
+                            React.createElement('select', {
+                                key: "status-select",
+                                value: task.status,
+                                onChange: (e) => updateTask(task.id, { status: e.target.value }),
+                                className: "text-xs border border-gray-300 rounded px-2 py-1"
+                            }, statusOptions.map(status => 
+                                React.createElement('option', { key: status, value: status }, status)
+                            )),
+                            React.createElement('input', {
+                                key: "time-manual",
+                                type: "number",
+                                placeholder: "Min. manuals",
+                                onChange: (e) => {
+                                    const minutes = parseInt(e.target.value) || 0;
+                                    updateTask(task.id, { timeTracked: (task.timeTracked || 0) + minutes });
+                                    e.target.value = '';
+                                },
+                                className: "text-xs border border-gray-300 rounded px-2 py-1 w-20"
+                            })
+                        ]),
+                        React.createElement('button', {
+                            key: "delete",
+                            onClick: () => deleteTask(task.id),
+                            className: "text-red-500 hover:text-red-700 text-sm"
+                        }, "Eliminar")
+                    ])
+                ])
+            );
+
+            const renderAnalytics = () => (
+                React.createElement('div', { className: "space-y-6" }, [
+                    React.createElement('div', {
+                        key: "summary",
+                        className: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
+                    }, [
+                        React.createElement('div', {
+                            key: "pending",
+                            className: "bg-red-50 p-4 rounded-lg border border-red-200"
+                        }, [
+                            React.createElement('h3', { className: "font-semibold text-red-900" }, "Pendents"),
+                            React.createElement('p', { className: "text-2xl font-bold text-red-600" }, analytics.pendingTasks)
+                        ]),
+                        React.createElement('div', {
+                            key: "completed",
+                            className: "bg-green-50 p-4 rounded-lg border border-green-200"
+                        }, [
+                            React.createElement('h3', { className: "font-semibold text-green-900" }, "Entregades"),
+                            React.createElement('p', { className: "text-2xl font-bold text-green-600" }, analytics.completedTasks)
+                        ]),
+                        React.createElement('div', {
+                            key: "in-progress",
+                            className: "bg-blue-50 p-4 rounded-lg border border-blue-200"
+                        }, [
+                            React.createElement('h3', { className: "font-semibold text-blue-900" }, "En progr."),
+                            React.createElement('p', { className: "text-2xl font-bold text-blue-600" }, analytics.inProgressTasks)
+                        ]),
+                        React.createElement('div', {
+                            key: "hours",
+                            className: "bg-purple-50 p-4 rounded-lg border border-purple-200"
+                        }, [
+                            React.createElement('h3', { className: "font-semibold text-purple-900" }, "Hores"),
+                            React.createElement('p', { className: "text-2xl font-bold text-purple-600" }, analytics.totalHoursWorked.toFixed(1))
+                        ]),
+                        React.createElement('div', {
+                            key: "budget",
+                            className: "bg-yellow-50 p-4 rounded-lg border border-yellow-200"
+                        }, [
+                            React.createElement('h3', { className: "font-semibold text-yellow-900" }, "Pressupost"),
+                            React.createElement('p', { className: "text-2xl font-bold text-yellow-600" }, `${analytics.totalBudget.toFixed(0)}€`)
+                        ])
+                    ]),
+
+                    React.createElement('div', {
+                        key: "charts",
+                        className: "grid grid-cols-1 md:grid-cols-2 gap-6"
+                    }, [
+                        React.createElement('div', {
+                            key: "by-dept",
+                            className: "bg-white p-4 rounded-lg border"
+                        }, [
+                            React.createElement('h3', { className: "font-semibold mb-3" }, "Tasques per Departament"),
+                            ...Object.entries(analytics.byDepartment).map(([dept, count]) =>
+                                React.createElement('div', {
+                                    key: dept,
+                                    className: "flex justify-between py-1 border-b border-gray-100"
+                                }, [
+                                    React.createElement('span', { className: "text-sm" }, dept),
+                                    React.createElement('span', { className: "font-medium" }, count)
+                                ])
+                            )
+                        ]),
+                        
+                        React.createElement('div', {
+                            key: "by-client",
+                            className: "bg-white p-4 rounded-lg border"
+                        }, [
+                            React.createElement('h3', { className: "font-semibold mb-3" }, "Tasques per Client"),
+                            ...Object.entries(analytics.byClient)
+                                .filter(([client]) => client.trim() !== '')
+                                .map(([client, count]) =>
+                                React.createElement('div', {
+                                    key: client,
+                                    className: "flex justify-between py-1 border-b border-gray-100"
+                                }, [
+                                    React.createElement('span', { className: "text-sm" }, client),
+                                    React.createElement('span', { className: "font-medium" }, count)
+                                ])
+                            )
+                        ])
+                    ])
+                ])
+            );
+
+            return React.createElement('div', { className: "min-h-screen bg-gray-50 p-4" }, [
+                React.createElement('div', { key: "container", className: "max-w-7xl mx-auto" }, [
+                    // Header
+                    React.createElement('div', {
+                        key: "header",
+                        className: "bg-white rounded-lg shadow-sm p-6 mb-6"
+                    }, [
+                        React.createElement('div', { className: "flex items-center justify-between" }, [
+                            React.createElement('h1', { className: "text-2xl font-bold text-gray-900" }, "Sistema de Gestió - Lourdes"),
+                            React.createElement('div', { className: "flex items-center space-x-4" }, [
+                                React.createElement('div', { className: "flex space-x-2" }, [
+                                    React.createElement('button', {
+                                        onClick: () => setView('tasks'),
+                                        className: `px-4 py-2 rounded-md ${view === 'tasks' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`
+                                    }, "Tasques"),
+                                    React.createElement('button', {
+                                        onClick: () => setView('analytics'),
+                                        className: `px-4 py-2 rounded-md ${view === 'analytics' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`
+                                    }, [
+                                        React.createElement(BarChart3, { className: "w-4 h-4 inline mr-1" }),
+                                        "Analytics"
+                                    ])
+                                ])
+                            ])
+                        ])
+                    ]),
+
+                    // Tasks view
+                    view === 'tasks' && React.createElement('div', { key: "tasks-view" }, [
+                        // Filters and Add Button
+                        React.createElement('div', {
+                            key: "filters",
+                            className: "bg-white rounded-lg shadow-sm p-4 mb-6"
+                        }, [
+                            React.createElement('div', { className: "flex items-center justify-between" }, [
+                                React.createElement('div', { className: "flex items-center space-x-4" }, [
+                                    React.createElement(Filter, { className: "w-5 h-5 text-gray-500" }),
+                                    React.createElement('select', {
+                                        value: filter,
+                                        onChange: (e) => setFilter(e.target.value),
+                                        className: "border border-gray-300 rounded-md px-3 py-1"
+                                    }, [
+                                        React.createElement('option', { value: "all" }, "Totes les tasques"),
+                                        React.createElement('option', { value: "pending" }, "Pendents"),
+                                        React.createElement('option', { value: "in-progress" }, "En progres"),
+                                        React.createElement('option', { value: "completed" }, "Completades"),
+                                        React.createElement('option', { value: "waiting-client" }, "Espero client"),
+                                        React.createElement('option', { value: "waiting-third" }, "Espero 3ers")
+                                    ])
+                                ]),
+                                React.createElement('button', {
+                                    onClick: () => setShowAddForm(!showAddForm),
+                                    className: "bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center space-x-2"
+                                }, [
+                                    React.createElement(Plus, { className: "w-4 h-4" }),
+                                    React.createElement('span', null, "Nova Tasca")
+                                ])
+                            ])
+                        ]),
+
+                        // Add Task Form
+                        showAddForm && React.createElement('div', {
+                            key: "add-form",
+                            className: "bg-white rounded-lg shadow-sm p-6 mb-6"
+                        }, [
+                            React.createElement('h2', { className: "text-lg font-semibold mb-4" }, "Nova Tasca"),
+                            React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" }, [
+                                React.createElement('div', { key: "description-field", className: "md:col-span-2 lg:col-span-3" }, [
+                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "1. Descripció"),
+                                    React.createElement('textarea', {
+                                        value: newTask.description,
+                                        onChange: (e) => setNewTask({...newTask, description: e.target.value}),
+                                        className: "w-full border border-gray-300 rounded-md px-3 py-2",
+                                        placeholder: "Descripció de la tasca",
+                                        rows: 2
+                                    })
+                                ]),
+                                React.createElement('div', { key: "department-field" }, [
+                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "2. Departament"),
+                                    React.createElement('select', {
+                                        value: newTask.department,
+                                        onChange: (e) => setNewTask({...newTask, department: e.target.value}),
+                                        className: "w-full border border-gray-300 rounded-md px-3 py-2"
+                                    }, [
+                                        React.createElement('option', { value: "" }, "Seleccionar departament"),
+                                        ...departments.map(dept => 
+                                            React.createElement('option', { key: dept, value: dept }, dept)
+                                        )
+                                    ])
+                                ]),
+                                React.createElement('div', { key: "status-field" }, [
+                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "3. Status"),
+                                    React.createElement('select', {
+                                        value: newTask.status,
+                                        onChange: (e) => setNewTask({...newTask, status: e.target.value}),
+                                        className: "w-full border border-gray-300 rounded-md px-3 py-2"
+                                    }, statusOptions.map(status => 
+                                        React.createElement('option', { key: status, value: status }, status)
+                                    ))
+                                ]),
+                                React.createElement('div', { key: "budget-field" }, [
+                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "5. Pressupost (€)"),
+                                    React.createElement('input', {
+                                        type: "number",
+                                        value: newTask.budget,
+                                        onChange: (e) => setNewTask({...newTask, budget: e.target.value}),
+                                        className: "w-full border border-gray-300 rounded-md px-3 py-2",
+                                        placeholder: "0,00",
+                                        step: "0.01"
+                                    })
+                                ]),
+                                React.createElement('div', { key: "client-name-field" }, [
+                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "6. Nom client"),
+                                    React.createElement('input', {
+                                        type: "text",
+                                        value: newTask.clientName,
+                                        onChange: (e) => setNewTask({...newTask, clientName: e.target.value}),
+                                        className: "w-full border border-gray-300 rounded-md px-3 py-2",
+                                        placeholder: "Nom del client"
+                                    })
+                                ]),
+                                React.createElement('div', { key: "client-responsible-field" }, [
+                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "7. Responsable client"),
+                                    React.createElement('input', {
+                                        type: "text",
+                                        value: newTask.clientResponsible,
+                                        onChange: (e) => setNewTask({...newTask, clientResponsible: e.target.value}),
+                                        className: "w-full border border-gray-300 rounded-md px-3 py-2",
+                                        placeholder: "Persona responsable"
+                                    })
+                                ]),
+                                React.createElement('div', { key: "client-project-field" }, [
+                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "8. Projecte client"),
+                                    React.createElement('input', {
+                                        type: "text",
+                                        value: newTask.clientProject,
+                                        onChange: (e) => setNewTask({...newTask, clientProject: e.target.value}),
+                                        className: "w-full border border-gray-300 rounded-md px-3 py-2",
+                                        placeholder: "Nom del projecte"
+                                    })
+                                ]),
+                                React.createElement('div', { key: "delivery-date-field" }, [
+                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "10. Data entrega"),
+                                    React.createElement('input', {
+                                        type: "date",
+                                        value: newTask.deliveryDate,
+                                        onChange: (e) => setNewTask({...newTask, deliveryDate: e.target.value}),
+                                        className: "w-full border border-gray-300 rounded-md px-3 py-2"
+                                    })
+                                ]),
+                                React.createElement('div', { key: "notes-field", className: "md:col-span-2 lg:col-span-3" }, [
+                                    React.createElement('label', { className: "block text-sm font-medium text-gray-700 mb-1" }, "9. Notes"),
+                                    React.createElement('textarea', {
+                                        value: newTask.notes,
+                                        onChange: (e) => setNewTask({...newTask, notes: e.target.value}),
+                                        className: "w-full border border-gray-300 rounded-md px-3 py-2",
+                                        placeholder: "Notes addicionals",
+                                        rows: 2
+                                    })
+                                ])
+                            ]),
+                            React.createElement('div', { className: "flex space-x-3 mt-6" }, [
+                                React.createElement('button', {
+                                    onClick: addTask,
+                                    className: "bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+                                }, "Crear Tasca"),
+                                React.createElement('button', {
+                                    onClick: () => setShowAddForm(false),
+                                    className: "bg-gray-300 text-gray-700 px-6 py-2 rounded-md hover:bg-gray-400"
+                                }, "Cancel·lar")
+                            ])
+                        ]),
+
+                        // Tasks Grid
+                        React.createElement('div', {
+                            key: "tasks-grid",
+                            className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                        }, filteredTasks.map(renderTaskCard)),
+
+                        filteredTasks.length === 0 && React.createElement('div', {
+                            key: "no-tasks",
+                            className: "bg-white rounded-lg shadow-sm p-8 text-center"
+                        }, [
+                            React.createElement('p', { className: "text-gray-500" }, "No hi ha tasques que coincideixin amb el filtre seleccionat.")
+                        ])
+                    ]),
+
+                    // Analytics view
+                    view === 'analytics' && renderAnalytics()
+                ])
+            ]);
+        };
+
+        ReactDOM.render(React.createElement(TaskManager), document.getElementById('root'));
+    </script>
+</body>
+</html>
