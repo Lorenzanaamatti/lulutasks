@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
         .timer-display { font-family: 'Courier New', monospace; }
@@ -80,6 +81,12 @@
             </svg>
         );
 
+        const Download = () => (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+        );
+
         const TaskManager = () => {
             const [tasks, setTasks] = useState([]);
             const [filter, setFilter] = useState('all');
@@ -128,6 +135,8 @@
                     // Cleanup all intervals on unmount
                     timerIntervals.current.forEach(interval => clearInterval(interval));
                 };
+
+            // Analytics calculations
             }, []);
 
             const formatTime = (minutes) => {
@@ -229,7 +238,59 @@
                 }
             };
 
-            // Analytics calculations
+            const exportToExcel = () => {
+                // Preparar datos de tareas para Excel
+                const tasksData = tasks.map(task => ({
+                    'Descripció': task.description,
+                    'Departament': task.department,
+                    'Status': task.status,
+                    'Temps (hores)': (task.timeTracked / 60).toFixed(2),
+                    'Pressupost (€)': task.budget ? task.budget.toFixed(2) : '0.00',
+                    'Client': task.clientName,
+                    'Responsable Client': task.clientResponsible,
+                    'Projecte': task.clientProject,
+                    'Data Entrega': task.deliveryDate ? new Date(task.deliveryDate).toLocaleDateString('ca-ES') : '',
+                    'Notes': task.notes,
+                    'Data Creació': new Date(task.createdAt).toLocaleDateString('ca-ES')
+                }));
+
+                // Preparar datos de analytics
+                const analyticsData = [
+                    ['Mètrica', 'Valor'],
+                    ['Total Tasques', analytics.totalTasks],
+                    ['Tasques Completades', analytics.completedTasks],
+                    ['Tasques Pendents', analytics.pendingTasks],
+                    ['Tasques En Progres', analytics.inProgressTasks],
+                    ['Espero Resposta Client', analytics.waitingClientTasks],
+                    ['Espero Resposta 3ers', analytics.waitingThirdTasks],
+                    ['Total Pressupost (€)', analytics.totalBudget.toFixed(2)],
+                    ['Total Hores Treballades', analytics.totalHoursWorked.toFixed(2)],
+                    [''],
+                    ['Tasques per Departament', ''],
+                    ...Object.entries(analytics.byDepartment),
+                    [''],
+                    ['Tasques per Client', ''],
+                    ...Object.entries(analytics.byClient).filter(([client]) => client.trim() !== '')
+                ];
+
+                // Crear workbook
+                const wb = XLSX.utils.book_new();
+                
+                // Añadir hoja de tareas
+                const wsTaskes = XLSX.utils.json_to_sheet(tasksData);
+                XLSX.utils.book_append_sheet(wb, wsTaskes, "Tasques");
+                
+                // Añadir hoja de analytics
+                const wsAnalytics = XLSX.utils.aoa_to_sheet(analyticsData);
+                XLSX.utils.book_append_sheet(wb, wsAnalytics, "Analytics");
+
+                // Generar nombre de archivo con fecha
+                const today = new Date().toISOString().split('T')[0];
+                const filename = `gestio-tasques-${today}.xlsx`;
+                
+                // Descargar archivo
+                XLSX.writeFile(wb, filename);
+            };
             const analytics = {
                 totalTasks: tasks.length,
                 completedTasks: tasks.filter(t => t.status === 'Completat').length,
@@ -462,6 +523,13 @@
                         React.createElement('div', { className: "flex items-center justify-between" }, [
                             React.createElement('h1', { className: "text-2xl font-bold text-gray-900" }, "Sistema de Gestió - Lourdes"),
                             React.createElement('div', { className: "flex items-center space-x-4" }, [
+                                React.createElement('button', {
+                                    onClick: exportToExcel,
+                                    className: "bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center space-x-2"
+                                }, [
+                                    React.createElement(Download, { className: "w-4 h-4" }),
+                                    React.createElement('span', null, "Exportar Excel")
+                                ]),
                                 React.createElement('div', { className: "flex space-x-2" }, [
                                     React.createElement('button', {
                                         onClick: () => setView('tasks'),
@@ -473,6 +541,7 @@
                                     }, [
                                         React.createElement(BarChart3, { className: "w-4 h-4 inline mr-1" }),
                                         "Analytics"
+                                    ])
                                     ])
                                 ])
                             ])
